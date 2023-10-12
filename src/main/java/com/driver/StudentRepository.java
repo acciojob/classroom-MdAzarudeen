@@ -1,77 +1,59 @@
 package com.driver;
 
 import org.springframework.stereotype.Repository;
-
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Repository
 public class StudentRepository {
-    Map<String,Student> studentDb=new HashMap<>();
-    Map<String,Teacher> teacherDb=new HashMap<>();
-    Map<String,String> teacherStudentDB=new HashMap<>();
+
+    private ConcurrentHashMap<String, Student> studentDB = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, Teacher> teacherDB = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<String, List<String>> studentTeacherDB = new ConcurrentHashMap<>();
+
     public void addStudent(Student student) {
-        studentDb.put(student.getName(),student);
+        studentDB.put(student.getName(), student);
     }
 
     public void addTeacher(Teacher teacher) {
-        teacherDb.put(teacher.getName(), teacher);
+        teacherDB.put(teacher.getName(), teacher);
     }
 
     public void addStudentTeacherPair(String student, String teacher) {
-        teacherStudentDB.put(teacher,student);
+        List<String> list = studentTeacherDB.getOrDefault(teacher, new ArrayList<>());
+        list.add(student);
+        studentTeacherDB.put(teacher, list);
     }
 
-    public Student getStudentByName(String name) {
-        return studentDb.get(name);
+    public Student getStudent(String name) {
+        return studentDB.get(name);
     }
 
-    public Teacher getTeacherByName(String name) {
-        return teacherDb.get(name);
+    public List<String> getAllStudents() {
+        return new ArrayList<>(studentDB.keySet());
     }
 
     public List<String> getStudentsByTeacherName(String teacher) {
-        List<String> ans=new ArrayList<>();
-
-        for(Map.Entry<String,String> entry:teacherStudentDB.entrySet()){
-            String teacherName= entry.getKey();
-            String studentName= entry.getValue();
-            if(teacherName.equals(teacher)){
-                ans.add(studentName);
-            }
-        }
-        return ans;
+        return studentTeacherDB.get(teacher);
     }
 
-    public List<String> getAllStudent() {
-        List<String>  ans=new ArrayList<>();
-        for(String studentName:studentDb.keySet()){
-            ans.add(studentName);
-        }
-        return ans;
+    public Teacher getTeacher(String name) {
+        return teacherDB.get(name);
     }
 
     public void deleteTeacherByName(String teacher) {
-        for(Map.Entry<String,String> entry:teacherStudentDB.entrySet()){
-            String teacherName=entry.getKey();
-            String studentName= entry.getValue();
+        teacherDB.remove(teacher);
 
-            if(teacherName.equals(teacher)){
-                teacherStudentDB.remove(teacher);
-                studentDb.remove(studentName);
-                teacherDb.remove(teacher);
-            }
-        }
+        List<String> students = getStudentsByTeacherName(teacher);
+        for (String student : students)
+            studentDB.remove(student);
+
+        studentTeacherDB.remove(teacher);
     }
 
     public void deleteAllTeachers() {
-        for(String teacherName:teacherDb.keySet()){
-            teacherDb.remove(teacherName);
-            String studentName=teacherStudentDB.get(teacherName);
-            studentDb.remove(studentName);
-            teacherStudentDB.remove(teacherName);
-        }
+        for (String teacher : teacherDB.keySet())
+            deleteTeacherByName(teacher);
     }
 }
